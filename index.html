@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>TNR Форма — обходчик</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <div class="h1">TNR Форма</div>
+      <div class="h2">Обходчик (без доступа к базе)</div>
+    </div>
+    <button id="btnInstall" class="btn ghost" style="display:none">Установить</button>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="row">
+        <div class="field">
+          <label>Район *</label>
+          <select id="district">
+            <option value="">— выбери —</option>
+            <option>Алатауский</option>
+            <option>Алмалинский</option>
+            <option>Ауэзовский</option>
+            <option>Бостандыкский</option>
+            <option>Жетысуский</option>
+            <option>Медеуский</option>
+            <option>Наурызбайский</option>
+            <option>Турксибский</option>
+            <option value="__manual__">Ввести вручную…</option>
+          </select>
+          <input id="districtManual" class="hidden" type="text" placeholder="Введи район вручную" />
+        </div>
+
+        <div class="field">
+          <label>Статус *</label>
+          <select id="status">
+            <option value="">— выбери —</option>
+            <option value="stray">Бездомная</option>
+            <option value="owned">Хозяйская</option>
+            <option value="shelter">Приют</option>
+            <option value="unknown">Неизвестно</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Адрес *</label>
+        <input id="address" type="text" placeholder="улица, дом, ориентир" />
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Кличка</label>
+          <input id="nickname" type="text" placeholder="если есть" />
+        </div>
+
+        <div class="field">
+          <label>Пол</label>
+          <select id="sex">
+            <option value="U">Неизвестно</option>
+            <option value="M">Кобель</option>
+            <option value="F">Сука</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Возраст (примерно, лет)</label>
+          <input id="age" type="number" inputmode="decimal" step="0.5" min="0" placeholder="например 2" />
+        </div>
+
+        <div class="field">
+          <label>Код (temp_code)</label>
+          <div class="inline">
+            <input id="temp_code" type="text" inputmode="numeric" maxlength="6" placeholder="например 0585" />
+            <button id="btnGenCode" class="btn">Сгенерировать</button>
+          </div>
+          <div class="hint">Можно написать этот код на фото/в заметке.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label class="chk">
+            <input id="sterilized" type="checkbox" />
+            <span>Стерилизована</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <label class="chk">
+            <input id="vaccinated" type="checkbox" />
+            <span>Вакцинирована</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="vacBlock" class="row hidden">
+        <div class="field">
+          <label>Дата вакцинации</label>
+          <input id="vaccination_date" type="date" />
+          <div class="hint">Если не знаешь — оставь пустым, координатор поставит.</div>
+        </div>
+      </div>
+
+      <div id="ownerBlock" class="card sub hidden">
+        <div class="subhead">Владелец (только если “Хозяйская”)</div>
+        <div class="row">
+          <div class="field">
+            <label>ФИО владельца</label>
+            <input id="owner_name" type="text" placeholder="можно пусто" />
+          </div>
+          <div class="field">
+            <label>Телефон владельца</label>
+            <input id="owner_phone" type="tel" inputmode="tel" placeholder="+7..." />
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Заметки</label>
+        <textarea id="notes" rows="3" placeholder="поведение, окрас, бирка, где лежит, контакт охраны, и т.д."></textarea>
+      </div>
+
+      <div class="field">
+        <label>Фото</label>
+        <input id="photo" type="file" accept="image/*" capture="environment" />
+        <div class="hint">Фото сохраняется на телефоне. В JSON уйдёт имя файла + метаданные (без тяжёлой картинки).</div>
+      </div>
+
+      <div class="actions">
+        <button id="btnExport" class="btn primary">Сохранить JSON</button>
+        <button id="btnShare" class="btn">Поделиться</button>
+        <button id="btnClear" class="btn danger">Очистить</button>
+      </div>
+
+      <div class="footerHint">
+        ✅ Черновик сохраняется автоматически. Даже если случайно закроешь — при открытии продолжишь.
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
