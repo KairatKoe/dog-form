@@ -1,4 +1,3 @@
-// app.js
 const $ = (id) => document.getElementById(id);
 
 const DRAFT_KEY = "tnr_draft_v2"; // увеличил версию черновика
@@ -73,32 +72,6 @@ function toggleBlocks() {
 }
 
 // -----------------------------
-// Photo helpers
-// -----------------------------
-function getSelectedPhotoFile() {
-  const photoInput = $("photo");
-  return photoInput.files && photoInput.files[0] ? photoInput.files[0] : null;
-}
-
-function buildPhotoMeta(file, tempCode) {
-  if (!file) return null;
-
-  const originalName = file.name || "photo.jpg";
-  const ext = originalName.includes(".") ? originalName.split(".").pop() : "jpg";
-
-  const code = normalizeTempCode(tempCode);
-  const suggested = code ? `${code}.${ext}` : originalName;
-
-  return {
-    original_name: originalName,
-    suggested_name: suggested,
-    type: file.type || null,
-    size: typeof file.size === "number" ? file.size : null,
-    lastModified: typeof file.lastModified === "number" ? file.lastModified : null,
-  };
-}
-
-// -----------------------------
 // Payload
 // -----------------------------
 function collectPayload() {
@@ -113,14 +86,7 @@ function collectPayload() {
   const vaccinated = $("vaccinated").checked;
   const vdate = $("vaccination_date").value || null;
 
-  const file = getSelectedPhotoFile();
-
   const tempCode = normalizeTempCode($("temp_code").value) || null;
-
-  // Если выбрали фото — нужен код, чтобы координатору легко состыковать
-  if (file && !tempCode) {
-    return { ok: false, msg: "Если прикрепляешь фото — сначала сгенерируй/укажи temp_code." };
-  }
 
   const payload = {
     district,
@@ -142,10 +108,9 @@ function collectPayload() {
 
     created_at: nowISO(),
     device: navigator.userAgent,
-    photo: file ? buildPhotoMeta(file, tempCode) : null,
   };
 
-  return { ok: true, payload, photoFile: file };
+  return { ok: true, payload };
 }
 
 // -----------------------------
@@ -167,7 +132,6 @@ function saveDraft() {
     owner_phone: $("owner_phone").value,
     temp_code: $("temp_code").value,
     notes: $("notes").value,
-    // фото не сохраняем (браузеры не дают восстановить выбранный файл)
   };
   localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 }
@@ -198,7 +162,6 @@ function clearDraftAndForm() {
   localStorage.removeItem(DRAFT_KEY);
   document.querySelectorAll("input,select,textarea").forEach((el) => {
     if (el.type === "checkbox") el.checked = false;
-    else if (el.type === "file") el.value = "";
     else el.value = "";
   });
   $("sex").value = "U";
@@ -206,7 +169,7 @@ function clearDraftAndForm() {
 }
 
 // -----------------------------
-// Export / Share
+// Export
 // -----------------------------
 function downloadJSON(obj) {
   const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
@@ -221,50 +184,6 @@ function downloadJSON(obj) {
   a.remove();
 
   URL.revokeObjectURL(url);
-}
-
-async function shareJSONAndMaybePhoto(payload, photoFile) {
-  const text = JSON.stringify(payload, null, 2);
-  const code = payload.temp_code || "anketa";
-
-  const jsonFile = new File([text], `anketa_${code}.json`, { type: "application/json" });
-
-  const files = [jsonFile];
-
-  // Если есть фото — пробуем приложить вторым файлом
-  // (Android Chrome/WhatsApp обычно умеют принимать несколько файлов)
-  if (photoFile) {
-    // имя файла фото желательно сделать с кодом
-    const meta = payload.photo && payload.photo.suggested_name ? payload.photo.suggested_name : `photo_${code}.jpg`;
-    const photoNamed = new File([photoFile], meta, { type: photoFile.type || "image/jpeg" });
-    files.push(photoNamed);
-  }
-
-  // Web Share API with files
-  if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
-    await navigator.share({
-      title: "Анкета собаки",
-      text: "Файлы для координатора: JSON + фото (если есть).",
-      files,
-    });
-    return { ok: true, mode: "share_files" };
-  }
-
-  // Если не умеет шарить 2 файла, пробуем хотя бы JSON
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: [jsonFile] })) {
-    await navigator.share({
-      title: "Анкета собаки",
-      text: photoFile
-        ? "JSON отправлен. Фото отправь вторым файлом отдельно (по коду)."
-        : "JSON анкета для импорта координатором.",
-      files: [jsonFile],
-    });
-    return { ok: true, mode: "share_json_only" };
-  }
-
-  // fallback: скачивание + подсказка
-  downloadJSON(payload);
-  return { ok: false, mode: "fallback_download" };
 }
 
 // -----------------------------
@@ -313,7 +232,7 @@ function init() {
     const code = genTempCode();
     $("temp_code").value = code;
     saveDraft();
-    alert("✅ Код сгенерирован: " + code + "\n\nЕсли делаешь фото — отправь фото с этим кодом (или просто прикрепи здесь и нажми «Поделиться»).");
+    alert("✅ Код сгенерирован: " + code);
   });
 
   $("btnExport").addEventListener("click", () => {
@@ -321,63 +240,14 @@ function init() {
     if (!res.ok) return alert(res.msg);
 
     downloadJSON(res.payload);
-
-    if (res.photoFile && res.payload.photo && res.payload.photo.suggested_name) {
-      alert(
-        "✅ JSON сохранён.\n\nЕсли фото прикреплено в форме — оно НЕ сохраняется в JSON.\n" +
-          "Отправь координатору:\n" +
-          "1) этот JSON\n" +
-          "2) фото (лучше назвать: " +
-          res.payload.photo.suggested_name +
-          ")"
-      );
-    } else {
-      alert("✅ JSON сохранён. Отправь файл координатору (WhatsApp/Telegram).");
-    }
-  });
-
-  $("btnShare").addEventListener("click", async () => {
-    const res = collectPayload();
-    if (!res.ok) return alert(res.msg);
-
-    try {
-      const result = await shareJSONAndMaybePhoto(res.payload, res.photoFile);
-
-      if (result.ok && result.mode === "share_files") {
-        alert("✅ Отправлено: JSON + фото (если было выбрано).");
-        return;
-      }
-
-      if (result.ok && result.mode === "share_json_only") {
-        const suggested = res.payload.photo && res.payload.photo.suggested_name ? res.payload.photo.suggested_name : null;
-        alert(
-          "✅ JSON отправлен.\n" +
-            (res.photoFile
-              ? ("⚠️ Этот телефон/браузер не отправляет фото вместе с JSON.\nОтправь фото отдельно. " +
-                 (suggested ? "Желательно назвать фото: " + suggested : ""))
-              : "")
-        );
-        return;
-      }
-
-      // fallback_download
-      const suggested = res.payload.photo && res.payload.photo.suggested_name ? res.payload.photo.suggested_name : null;
-      alert(
-        "📥 JSON скачан (как запасной вариант).\n" +
-          (res.photoFile
-            ? ("Фото отправь отдельно. " + (suggested ? "Желательно назвать: " + suggested : ""))
-            : "")
-      );
-    } catch (e) {
-      alert("❌ Не удалось поделиться. Используй «Сохранить JSON» и отправь вручную.");
-    }
+    alert("✅ JSON сохранён. Отправь файл координатору (WhatsApp/Telegram).");
   });
 
   $("btnClear").addEventListener("click", () => {
     if (confirm("Очистить форму и черновик?")) clearDraftAndForm();
   });
 
-  // Мелочь: если вводят код вручную — нормализуем в upper и без пробелов
+  // если вводят код вручную — нормализуем в upper и без пробелов
   $("temp_code").addEventListener("change", () => {
     $("temp_code").value = normalizeTempCode($("temp_code").value) || "";
     saveDraft();
